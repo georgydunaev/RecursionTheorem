@@ -227,6 +227,39 @@ class TestKleeneFirstRecursionTheorem(unittest.TestCase):
         f2 = {0: 1, 1: 1}
         self.assertTrue(KleeneFirstRecursion.verify_monotonicity(phi_fact, f1, f2))
 
+    def test_continuity_and_fibonacci(self):
+        # Chain of approximations
+        chain = [{0: 1}, {0: 1, 1: 1}, {0: 1, 1: 1, 2: 2}]
+
+        def phi_fact(f):
+            nxt = {}
+            if 0 not in f:
+                nxt[0] = 1
+            for k, v in f.items():
+                nxt[k] = v
+                nxt[k + 1] = (k + 1) * v
+            return nxt
+
+        self.assertTrue(KleeneFirstRecursion.verify_continuity(phi_fact, chain))
+
+        # Fibonacci least fixed point
+        def phi_fib(f):
+            nxt = {}
+            for n in range(8):
+                if n == 0:
+                    nxt[0] = 0
+                elif n == 1:
+                    nxt[1] = 1
+                elif (n - 1) in f and (n - 2) in f:
+                    nxt[n] = f[n - 1] + f[n - 2]
+            return nxt
+
+        fib_lfp = KleeneFirstRecursion.least_fixed_point(phi_fib, max_iterations=12)
+        expected_fib = [0, 1, 1, 2, 3, 5, 8, 13]
+        for idx, val in enumerate(expected_fib):
+            self.assertEqual(fib_lfp[idx], val)
+        self.assertTrue(KleeneFirstRecursion.verify_fixed_point(phi_fib, fib_lfp))
+
 
 class TestKleeneSecondRecursionTheorem(unittest.TestCase):
     """Verify Kleene's Second Recursion Theorem and S-m-n parameter theorem."""
@@ -249,13 +282,34 @@ class TestKleeneSecondRecursionTheorem(unittest.TestCase):
         for y in range(5):
             self.assertEqual(self.sys.phi(s_10_3, y), 9 + y)
 
+    def test_general_smn_parameter_theorem(self):
+        # 3-argument program: f(x1, y1, y2) = 2*x1 + 3*y1 + 5*y2
+        # S^1_2 specializes x1, returning 2-argument function
+        self.sys.register_program_n(20, 3, lambda x1, y1, y2: 2 * x1 + 3 * y1 + 5 * y2)
+        e_spec1 = self.sys.s_m_n(20, 1, 2, 7)  # fixed x1 = 7, 2*7 = 14
+        for y1 in range(3):
+            for y2 in range(3):
+                self.assertEqual(
+                    self.sys.phi_n(e_spec1, y1, y2),
+                    14 + 3 * y1 + 5 * y2,
+                )
+
+        # 4-argument program: g(x1, x2, y1, y2) = (x1 + x2) * (y1 + y2)
+        # S^2_2 specializes (x1, x2), returning 2-argument function
+        self.sys.register_program_n(30, 4, lambda x1, x2, y1, y2: (x1 + x2) * (y1 + y2))
+        e_spec2 = self.sys.s_m_n(30, 2, 2, 3, 4)  # fixed x1=3, x2=4 -> sum = 7
+        for y1 in range(3):
+            for y2 in range(3):
+                self.assertEqual(
+                    self.sys.phi_n(e_spec2, y1, y2),
+                    7 * (y1 + y2),
+                )
+
     def test_second_recursion_theorem_fixpoint(self):
         kleene = KleeneSecondRecursion(self.sys)
 
         # Transformation f: shifts program index to another program
         # that behaves according to a known transformation
-        # Let f be an arbitrary index mapping, e.g. mapping index to a program
-        # that behaves like adding the index itself
         def f(idx: int) -> int:
             new_idx = self.sys._next_index
             self.sys._next_index += 1
@@ -265,6 +319,27 @@ class TestKleeneSecondRecursionTheorem(unittest.TestCase):
 
         e = kleene.find_fixed_point_index(f)
         self.assertTrue(kleene.verify_fixed_point(e, f, test_inputs=[0, 1, 2, 5, 10]))
+
+    def test_self_referential_program_via_second_recursion(self):
+        kleene = KleeneSecondRecursion(self.sys)
+
+        # 1. Program that knows its own index e and computes e * 10 + x
+        e_self = kleene.find_self_referential_index(lambda my_e, x: my_e * 10 + x)
+        for x in range(4):
+            self.assertEqual(self.sys.phi(e_self, x), e_self * 10 + x)
+
+        # 2. Recursive computation of factorial via self-reference to own index:
+        # phi_e(x) = 1 if x == 0 else x * phi_e(x - 1)
+        def fact_body(my_e: int, x: int) -> int:
+            if x <= 0:
+                return 1
+            prev = self.sys.phi(my_e, x - 1)
+            return x * prev
+
+        e_fact = kleene.find_self_referential_index(fact_body)
+        expected_facts = [1, 1, 2, 6, 24, 120]
+        for n, exp_val in enumerate(expected_facts):
+            self.assertEqual(self.sys.phi(e_fact, n), exp_val)
 
     def test_parametric_recursion_theorem(self):
         param_rec = ParametricRecursionTheorem(self.sys)

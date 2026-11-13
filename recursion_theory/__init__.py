@@ -12,6 +12,7 @@ from recursion_theory.kleene import (
     ParametricRecursionTheorem,
     RicesTheoremVerification,
     QuineConstructor,
+    ProgramSystem,
 )
 from recursion_theory.combinators import (
     Term,
@@ -44,6 +45,7 @@ from recursion_theory.primitive_recursion import (
 from recursion_theory.theory_checker import IsabelleTheoryChecker
 
 __all__ = [
+    "ProgramSystem",
     "KleeneFirstRecursion",
     "KleeneSecondRecursion",
     "ParametricRecursionTheorem",

@@ -512,7 +512,6 @@ proof(unfold function_def)
 qed
 
 theorem domuncomp: 
-  assumes H0:\<open>compatset(S)\<close>
   assumes W:\<open>f\<in>S\<close>
   shows \<open>domain(f)\<subseteq>domain(\<Union>S)\<close>
 proof

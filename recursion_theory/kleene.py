@@ -82,6 +82,19 @@ class KleeneFirstRecursion:
         phi_f = phi(f)
         return phi_f == f
 
+    @staticmethod
+    def verify_continuity(phi: Functional, chain: List[PartialFunction]) -> bool:
+        """Verify that phi(Union chain) == Union (phi(f_i)) for a chain of approximations."""
+        union_chain: PartialFunction = {}
+        for f in chain:
+            union_chain.update(f)
+        phi_union = phi(union_chain)
+
+        union_phi: PartialFunction = {}
+        for f in chain:
+            union_phi.update(phi(f))
+        return phi_union == union_phi
+
 
 class ProgramSystem:
     """An acceptable programming system / Godel numbering model for Kleene's theorems.
@@ -89,6 +102,7 @@ class ProgramSystem:
     Each program is represented by an integer index e.
     phi_e(x) computes the result of program e on input x.
     phi2_e(x, y) computes the result of 2-argument program e on (x, y).
+    phi_n(e, *args) computes the result of arbitrary arity program e on args.
     """
 
     def __init__(self):
@@ -96,29 +110,59 @@ class ProgramSystem:
         self._programs_1: Dict[int, Callable[[int], Optional[int]]] = {}
         # Registry of 2-argument programs: index -> Callable[[int, int], Optional[int]]
         self._programs_2: Dict[int, Callable[[int, int], Optional[int]]] = {}
+        # General registry: (arity, index) -> Callable[..., Optional[int]]
+        self._programs_n: Dict[Tuple[int, int], Callable[..., Optional[int]]] = {}
         # S-1-1 table: (e, x) -> specialized index
         self._s11_table: Dict[Tuple[int, int], int] = {}
+        # S-m-n table: (e, m, n, fixed_args) -> specialized index
+        self._smn_table: Dict[Tuple[int, int, int, Tuple[int, ...]], int] = {}
         self._next_index = 1000
 
     def register_program_1(self, index: int, fn: Callable[[int], Optional[int]]) -> int:
         self._programs_1[index] = fn
+        self._programs_n[(1, index)] = fn
         return index
 
     def register_program_2(self, index: int, fn: Callable[[int, int], Optional[int]]) -> int:
         self._programs_2[index] = fn
+        self._programs_n[(2, index)] = fn
+        return index
+
+    def register_program_n(self, index: int, arity: int, fn: Callable[..., Optional[int]]) -> int:
+        """Register a program of given arity."""
+        self._programs_n[(arity, index)] = fn
+        if arity == 1:
+            self._programs_1[index] = fn
+        elif arity == 2:
+            self._programs_2[index] = fn
         return index
 
     def phi(self, e: int, x: int) -> Optional[int]:
         """Evaluate program e on argument x."""
-        if e not in self._programs_1:
-            return None
-        return self._programs_1[e](x)
+        if e in self._programs_1:
+            return self._programs_1[e](x)
+        if (1, e) in self._programs_n:
+            return self._programs_n[(1, e)](x)
+        return None
 
     def phi2(self, e: int, x: int, y: int) -> Optional[int]:
         """Evaluate 2-argument program e on arguments (x, y)."""
-        if e not in self._programs_2:
-            return None
-        return self._programs_2[e](x, y)
+        if e in self._programs_2:
+            return self._programs_2[e](x, y)
+        if (2, e) in self._programs_n:
+            return self._programs_n[(2, e)](x, y)
+        return None
+
+    def phi_n(self, e: int, *args: int) -> Optional[int]:
+        """Evaluate program e on arbitrary number of arguments."""
+        arity = len(args)
+        if (arity, e) in self._programs_n:
+            return self._programs_n[(arity, e)](*args)
+        if arity == 1 and e in self._programs_1:
+            return self._programs_1[e](args[0])
+        if arity == 2 and e in self._programs_2:
+            return self._programs_2[e](args[0], args[1])
+        return None
 
     def s11(self, e: int, x: int) -> int:
         """The S-1-1 parameter function.
@@ -126,19 +170,38 @@ class ProgramSystem:
         Returns an index e_x such that for all y:
           phi(e_x, y) == phi2(e, x, y)
         """
-        key = (e, x)
-        if key in self._s11_table:
-            return self._s11_table[key]
+        return self.s_m_n(e, 1, 1, x)
+
+    def s_m_n(self, e: int, m: int, n: int, *fixed_args: int) -> int:
+        """The S-m-n Parameterization Theorem.
+
+        Given program index e computing an (m + n)-ary function,
+        and m fixed parameters (x_1, ..., x_m),
+        construct an index e' computing an n-ary function such that:
+          phi_n(e', y_1, ..., y_n) == phi_{m+n}(e, x_1, ..., x_m, y_1, ..., y_n).
+        """
+        if len(fixed_args) != m:
+            raise ValueError(f"Expected {m} fixed arguments, got {len(fixed_args)}")
+
+        key = (e, m, n, fixed_args)
+        if key in self._smn_table:
+            return self._smn_table[key]
 
         new_idx = self._next_index
         self._next_index += 1
 
-        # Curried program: captures e and x
-        def specialized(y: int) -> Optional[int]:
-            return self.phi2(e, x, y)
+        total_arity = m + n
 
-        self._programs_1[new_idx] = specialized
-        self._s11_table[key] = new_idx
+        def specialized(*remaining_args: int) -> Optional[int]:
+            if len(remaining_args) != n:
+                raise ValueError(f"Expected {n} arguments, got {len(remaining_args)}")
+            all_args = fixed_args + remaining_args
+            return self.phi_n(e, *all_args)
+
+        self.register_program_n(new_idx, n, specialized)
+        self._smn_table[key] = new_idx
+        if m == 1 and n == 1:
+            self._s11_table[(e, fixed_args[0])] = new_idx
         return new_idx
 
     def diagonal(self, x: int) -> int:
@@ -189,6 +252,20 @@ class KleeneSecondRecursion:
         # Step 3: Compute e = d(v) = s11(v, v)
         e = self.system.diagonal(v)
         return e
+
+    def find_self_referential_index(self, F: Callable[[int, int], Optional[int]]) -> int:
+        """Construct a self-referential program index e such that phi_e(x) == F(e, x).
+
+        By Kleene's Second Recursion Theorem, any program with access to its
+        own index e is effective and computable.
+        """
+        def f(idx: int) -> int:
+            new_idx = self.system._next_index
+            self.system._next_index += 1
+            self.system.register_program_1(new_idx, lambda x: F(idx, x))
+            return new_idx
+
+        return self.find_fixed_point_index(f)
 
     def verify_fixed_point(
         self,
