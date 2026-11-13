@@ -515,7 +515,19 @@ theorem domuncomp:
   assumes H0:\<open>compatset(S)\<close>
   assumes W:\<open>f\<in>S\<close>
   shows \<open>domain(f)\<subseteq>domain(\<Union>S)\<close>
-  oops
+proof
+  fix x
+  assume H:\<open>x \<in> domain(f)\<close>
+  show \<open>x \<in> domain(\<Union>S)\<close>
+  proof(rule domainE[OF H])
+    fix y
+    assume K:\<open>\<langle>x, y\<rangle> \<in> f\<close>
+    have \<open>\<langle>x, y\<rangle> \<in> \<Union>S\<close>
+      by(rule UnionI[OF W K])
+    then show \<open>x \<in> domain(\<Union>S)\<close>
+      by(rule domainI)
+  qed
+qed
 
 theorem mkel :
   assumes 1:\<open>A\<close>
