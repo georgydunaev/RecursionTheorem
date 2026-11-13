@@ -24,18 +24,34 @@ if ROOT not in sys.path:
 
 from recursion_theory.theory_checker import IsabelleTheoryChecker
 from recursion_theory.primitive_recursion import (
+    PRF,
     Zero,
     Succ,
     Proj,
+    Compose,
     Comp,
+    Recurse,
     Rec,
+    Rec0,
     Mu,
+    PRFVerifier,
+    encode_prf,
+    decode_prf,
+    cantor_pair,
+    cantor_unpair,
     prf_add,
     prf_mult,
     prf_exp,
     prf_fact,
     prf_pred,
     prf_sub,
+    prf_const,
+    prf_id,
+    prf_is_zero,
+    prf_signum,
+    prf_max,
+    prf_min,
+    prf_equal,
 )
 from recursion_theory.kleene import (
     KleeneFirstRecursion,
@@ -44,6 +60,16 @@ from recursion_theory.kleene import (
     ParametricRecursionTheorem,
     RicesTheoremVerification,
     QuineConstructor,
+    IndexMapping,
+    IdentityMapping,
+    ConstantMapping,
+    ComposedMapping,
+    DiagonalMapping,
+    SmnMapping,
+    ParametricMapping,
+    ComputabilityLemmas,
+    KleeneProofCertificate,
+    DoubleRecursionTheorem,
 )
 from recursion_theory.combinators import (
     Var,
@@ -413,7 +439,7 @@ class TestLambdaCalculusAndCombinators(unittest.TestCase):
         self.assertEqual(church_to_int(res_prod), 6)
 
     def test_fixed_point_combinator_expansion(self):
-        # Y F -> F (Y F)
+        # Y F to F (Y F)
         # Using Turing's Theta combinator: Theta F reduces directly in normal order!
         Theta = Theta_combinator()
         F = Var("F")
@@ -421,6 +447,281 @@ class TestLambdaCalculusAndCombinators(unittest.TestCase):
         # 1 step should unpack Theta
         step1 = reduce_step(term)
         self.assertIsNotNone(step1)
+
+
+class TestModularPrimitiveRecursiveDatatypes(unittest.TestCase):
+    """Verify Ticket 7459: Modular inductive PRF schemas and evaluation semantics."""
+
+    def test_inductive_constructors_and_aliases(self):
+        z = Zero(2)
+        s = Succ()
+        p = Proj(3, 2)
+        c = Compose(s, [p])
+        r = Recurse(Zero(1), Compose(s, [Proj(3, 2)]))
+
+        self.assertIs(Comp, Compose)
+        self.assertIs(Rec, Recurse)
+        self.assertIsInstance(c, Comp)
+        self.assertIsInstance(r, Rec)
+        self.assertEqual(z(5, 9), 0)
+        self.assertEqual(s(7), 8)
+        self.assertEqual(p(10, 20, 30), 20)
+
+    def test_ast_metrics_and_subterms(self):
+        z = Zero(1)
+        s = Succ()
+        p = Proj(3, 2)
+        self.assertEqual(z.size, 1)
+        self.assertEqual(z.depth, 1)
+        self.assertEqual(z.subterms(), [])
+
+        c = Compose(s, [p])
+        self.assertEqual(c.size, 3)
+        self.assertEqual(c.depth, 2)
+        self.assertEqual(len(c.subterms()), 2)
+        self.assertTrue(c.is_well_formed())
+
+        add_fn = prf_add()
+        self.assertTrue(add_fn.size > 3)
+        self.assertTrue(add_fn.depth >= 3)
+        self.assertTrue(add_fn.is_well_formed())
+
+    def test_dictionary_serialization_and_deserialization(self):
+        add_fn = prf_add()
+        d = add_fn.to_dict()
+        self.assertEqual(d["type"], "Recurse")
+        recovered = PRF.from_dict(d)
+        self.assertEqual(recovered, add_fn)
+        for x in range(4):
+            for y in range(4):
+                self.assertEqual(recovered(y, x), add_fn(y, x))
+
+    def test_structural_equality_and_hashing(self):
+        z1 = Zero(2)
+        z2 = Zero(2)
+        z3 = Zero(3)
+        self.assertEqual(z1, z2)
+        self.assertNotEqual(z1, z3)
+        self.assertEqual(hash(z1), hash(z2))
+
+        p1 = Proj(3, 2)
+        p2 = Proj(3, 2)
+        self.assertEqual(p1, p2)
+        self.assertEqual(hash(p1), hash(p2))
+
+        c1 = Compose(Succ(), [Proj(2, 1)])
+        c2 = Compose(Succ(), [Proj(2, 1)])
+        self.assertEqual(c1, c2)
+        self.assertEqual(hash(c1), hash(c2))
+
+    def test_formal_semantics_verifier(self):
+        z = Zero(2)
+        self.assertTrue(PRFVerifier.verify_zero_semantics(z, [(1, 2), (0, 0), (10, 5)]))
+
+        s = Succ()
+        self.assertTrue(PRFVerifier.verify_succ_semantics(s, [0, 1, 2, 10]))
+
+        p = Proj(3, 2)
+        self.assertTrue(PRFVerifier.verify_proj_semantics(p, [(1, 2, 3), (9, 8, 7)]))
+
+        c = Compose(s, [p])
+        self.assertTrue(PRFVerifier.verify_compose_semantics(c, [(1, 2, 3), (4, 5, 6)]))
+
+        add_fn = prf_add()
+        test_samples = [(y, x) for y in range(4) for x in range(4)]
+        self.assertTrue(PRFVerifier.verify_recurse_semantics(add_fn, test_samples))
+        self.assertTrue(PRFVerifier.verify_inductive_semantics(add_fn, test_samples))
+
+    def test_cantor_pairing_and_godel_numbering(self):
+        pairs = [(0, 0), (1, 0), (0, 1), (2, 3), (10, 20)]
+        for x, y in pairs:
+            c = cantor_pair(x, y)
+            self.assertEqual(cantor_unpair(c), (x, y))
+
+        prfs = [
+            Zero(1),
+            Succ(),
+            Proj(3, 2),
+            Compose(Succ(), [Proj(1, 1)]),
+            prf_add(),
+            prf_mult(),
+            prf_pred(),
+        ]
+        for fn in prfs:
+            code = encode_prf(fn)
+            self.assertIsInstance(code, int)
+            self.assertGreater(code, 0)
+            decoded = decode_prf(code)
+            self.assertEqual(decoded, fn)
+            self.assertEqual(decoded.arity, fn.arity)
+
+    def test_derived_prfs_and_algebraic_properties(self):
+        const5 = prf_const(5, arity=2)
+        self.assertEqual(const5(10, 20), 5)
+        self.assertEqual(const5(0, 0), 5)
+
+        id_fn = prf_id(arity=2)
+        self.assertEqual(id_fn(42, 99), 42)
+
+        is_zero = prf_is_zero()
+        self.assertEqual(is_zero(0), 1)
+        self.assertEqual(is_zero(1), 0)
+        self.assertEqual(is_zero(10), 0)
+
+        sgn = prf_signum()
+        self.assertEqual(sgn(0), 0)
+        self.assertEqual(sgn(1), 1)
+        self.assertEqual(sgn(100), 1)
+
+        max_fn = prf_max()
+        min_fn = prf_min()
+        eq_fn = prf_equal()
+        for x in range(5):
+            for y in range(5):
+                self.assertEqual(max_fn(y, x), max(x, y))
+                self.assertEqual(min_fn(y, x), min(x, y))
+                self.assertEqual(eq_fn(y, x), 1 if x == y else 0)
+
+    def test_eval_trace(self):
+        add_fn = prf_add()
+        res, trace = add_fn.eval_trace(3, 4)
+        self.assertEqual(res, 7)
+        self.assertTrue(len(trace) >= 2)
+
+
+class TestIndexMappingAndComputabilityLemmas(unittest.TestCase):
+    """Verify Ticket 7458: Index mapping functions, computability lemmas, and decomposed fixpoint."""
+
+    def setUp(self):
+        self.sys = ProgramSystem()
+        self.sys.register_program_1(1, lambda x: x + 1)
+        self.sys.register_program_1(2, lambda x: 2 * x)
+        self.sys.register_program_2(10, lambda x, y: x * x + y)
+
+    def test_index_mapping_classes(self):
+        id_map = IdentityMapping()
+        self.assertEqual(id_map(42), 42)
+
+        const_map = ConstantMapping(99)
+        self.assertEqual(const_map(12), 99)
+
+        comp_map = id_map.compose(const_map)
+        self.assertEqual(comp_map(7), 99)
+
+        diag_map = DiagonalMapping(self.sys)
+        self.assertEqual(diag_map(10), self.sys.s11(10, 10))
+
+        smn_map = SmnMapping(self.sys, 1, 1, (3,))
+        spec_idx = smn_map(10)
+        for y in range(4):
+            self.assertEqual(self.sys.phi(spec_idx, y), 3 * 3 + y)
+
+    def test_lemma_smn_currying(self):
+        self.sys.register_program_2(100, lambda x, y: 3 * x + y)
+        self.assertTrue(
+            ComputabilityLemmas.verify_smn_currying(
+                self.sys,
+                e=100,
+                m=1,
+                n=1,
+                fixed_args=(5,),
+                test_inputs=[(0,), (1,), (2,), (5,)]
+            )
+        )
+
+    def test_lemma_smn_iteration(self):
+        self.sys.register_program_n(200, 3, lambda x1, x2, y: 2 * x1 + 3 * x2 + 5 * y)
+        self.assertTrue(
+            ComputabilityLemmas.verify_smn_iteration(
+                self.sys,
+                e=200,
+                m1=1,
+                m2=1,
+                n=1,
+                fixed1=(4,),
+                fixed2=(6,),
+                test_inputs=[(0,), (1,), (2,)]
+            )
+        )
+
+    def test_lemma_diagonal_computability(self):
+        self.assertTrue(
+            ComputabilityLemmas.verify_diagonal_computability(
+                self.sys,
+                test_indices=[1, 2, 10, 100]
+            )
+        )
+
+    def test_lemma_padding(self):
+        self.assertTrue(
+            ComputabilityLemmas.verify_padding_lemma(
+                self.sys,
+                e=1,
+                count=5,
+                test_inputs=[0, 1, 2, 5]
+            )
+        )
+
+    def test_lemma_index_composition(self):
+        self.assertTrue(
+            ComputabilityLemmas.verify_composition_lemma(
+                self.sys,
+                e1=1,
+                e2=2,
+                test_inputs=[0, 1, 2, 5]
+            )
+        )
+        comp_idx = self.sys.compose_programs(1, 2)
+        for x in [0, 1, 2, 5]:
+            self.assertEqual(self.sys.phi(comp_idx, x), (2 * x) + 1)
+
+    def test_lemma_universal_evaluation(self):
+        u = self.sys.universal_index()
+        pairs = [(1, 5), (1, 10), (2, 3), (2, 7)]
+        self.assertTrue(
+            ComputabilityLemmas.verify_universal_function(
+                self.sys,
+                u=u,
+                test_pairs=pairs
+            )
+        )
+
+    def test_decomposed_kleene_proof_certificate(self):
+        kleene = KleeneSecondRecursion(self.sys)
+
+        def f(idx: int) -> int:
+            new_idx = self.sys._next_index
+            self.sys._next_index += 1
+            self.sys.register_program_1(new_idx, lambda y: y + 10)
+            return new_idx
+
+        cert = kleene.decompose_proof(f, test_inputs=[0, 1, 2, 5])
+        self.assertIsInstance(cert, KleeneProofCertificate)
+        self.assertTrue(cert.is_verified)
+        self.assertEqual(len(cert.proof_steps), 4)
+        summary = cert.summary()
+        self.assertIn("Kleene Second Recursion Theorem Proof Certificate", summary)
+        self.assertIn("Auxiliary kernel index", summary)
+        self.assertIn("Fixed point index", summary)
+
+    def test_double_recursion_theorem(self):
+        double_rec = DoubleRecursionTheorem(self.sys)
+
+        def f1(a: int, b: int) -> int:
+            idx = self.sys._next_index
+            self.sys._next_index += 1
+            self.sys.register_program_1(idx, lambda y: y + (a % 10) + (b % 10))
+            return idx
+
+        def f2(a: int, b: int) -> int:
+            idx = self.sys._next_index
+            self.sys._next_index += 1
+            self.sys.register_program_1(idx, lambda y: y + ((a * b) % 10))
+            return idx
+
+        a, b = double_rec.find_double_fixed_points(f1, f2)
+        verified = double_rec.verify_double_fixed_points(a, b, f1, f2, test_inputs=[0, 1, 2, 5])
+        self.assertTrue(verified)
 
 
 if __name__ == "__main__":
