@@ -100,6 +100,18 @@ from recursion_theory.simple_sets import (
     PriorityWorker,
     SimpleSet,
 )
+from recursion_theory.turing_degrees import (
+    OracleQuery,
+    OracleExecutionTrace,
+    OracleTuringMachine,
+    TuringReduction,
+    TuringDegree,
+)
+from recursion_theory.friedberg_muchnik import (
+    FriedbergMuchnikRequirement,
+    IncomparableCEDegreesCertificate,
+    FriedbergMuchnikEngine,
+)
 
 __all__ = [
     "ProgramSystem",
@@ -182,4 +194,12 @@ __all__ = [
     "PriorityRequirement",
     "PriorityWorker",
     "SimpleSet",
+    "OracleQuery",
+    "OracleExecutionTrace",
+    "OracleTuringMachine",
+    "TuringReduction",
+    "TuringDegree",
+    "FriedbergMuchnikRequirement",
+    "IncomparableCEDegreesCertificate",
+    "FriedbergMuchnikEngine",
 ]
