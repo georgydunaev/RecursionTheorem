@@ -27,6 +27,10 @@ The Recursion Theorem appears in two fundamental branches of mathematical logic:
      Many-one ($A \le_m B$) and one-one ($A \le_1 B$) computable reductions, finite patch extension, and the constructive back-and-forth Myhill isomorphism algorithm in `recursion_theory/myhill.py`.
    - **Arithmetical Hierarchy and Limit Lemma**:
      $\Sigma_n^0, \Pi_n^0, \Delta_n^0$ quantifier alternation classification, Shoenfield Limit Lemma ($\Delta_2^0$ limit approximations), Post's Theorem (Turing jump equivalence), and completeness proofs ($\mathcal{K}$ is $\Sigma_1^0$-complete, $\mathrm{Tot}$ is $\Pi_2^0$-complete) in `recursion_theory/hierarchy.py`.
+   - **Blum Abstract Complexity Axioms, Compression, and Speedup Theorems**:
+     Blum's machine-independent complexity axioms (domain convergence and step decidability), constructive separation of complexity classes via diagonalization in the Compression Theorem, and constructive simulation of arbitrary complexity speedup (Speedup Theorem) in `recursion_theory/complexity.py`.
+   - **Post's Problem, Simple Sets, and Finite-Injury Priority Engine**:
+     Mechanization of simple sets (coinfinite c.e. sets intersecting every infinite c.e. set) via Post's restraint construction ($x > 2e$), formal proof that $\emptyset <_m \mathcal{S} <_m \mathcal{K}$, and a general finite-injury priority argument framework (`PriorityWorker`) in `recursion_theory/simple_sets.py`.
 
 ## Repository Architecture
 
@@ -42,12 +46,15 @@ RecursionTheorem/
 ├── recursion_theory/          (Computational and formalization package)
 │   ├── __init__.py
 │   ├── combinators.py         (Untyped lambda calculus, Y, Theta, Z combinators, Church arithmetic)
+│   ├── complexity.py          (Blum complexity axioms, Compression theorem, Speedup theorem)
 │   ├── hierarchy.py           (Arithmetical hierarchy, Post theorem, Shoenfield limit lemma, completeness)
 │   ├── kleene.py              (Kleene 1st & 2nd recursion theorems, S-m-n, Rice theorem, quines)
 │   ├── myhill.py              (Computable reductions, Myhill isomorphism theorem, Cantor-Bernstein)
 │   ├── primitive_recursion.py (PRF schema, Peano arithmetic, Mu-operator)
+│   ├── simple_sets.py         (Simple sets, Post's problem solution, finite-injury priority engine)
 │   └── theory_checker.py      (Automated Isabelle/ZF structural & proof hygiene checker)
 ├── tests/
+│   ├── test_complexity_and_simple_sets.py (Unit tests for Blum complexity and Post simple sets)
 │   ├── test_myhill_and_hierarchy.py (Unit tests for Myhill isomorphism and arithmetical hierarchy)
 │   └── test_recursion.py      (Comprehensive test suite for Kleene theorems and PRFs)
 └── tickets/                   (Local ticket ledger for project tracking)
@@ -93,6 +100,13 @@ The Isabelle/ZF development formalizes:
   - `LimitApproximation` and `LimitLemma`: Shoenfield limit lemma formalization ($\Delta_2^0$ limit convergence and mind change analysis).
   - `PostsTheorem` and `TuringJump`: Jump hierarchy correspondence $\Sigma_{n+1}^0 \iff \text{c.e. in } \emptyset^{(n)}$.
   - `CompletenessProof` and `KleeneTPredicate`: Formal completeness for $\mathcal{K}$ ($\Sigma_1^0$), $\mathrm{Tot}$ ($\Pi_2^0$), $\mathrm{Fin}$ ($\Sigma_2^0$), and $\mathrm{Empty}$ ($\Pi_1^0$).
+- **`complexity.py`**:
+  - `BlumComplexityMeasure`: Abstract complexity measures verifying domain convergence (Axiom 1) and bounded step decidability (Axiom 2).
+  - `BlumCompressionTheorem`: Constructive diagonalization yielding separating functions for complexity classes.
+  - `BlumSpeedupTheorem`: Constructive simulation of arbitrary complexity speedup without optimal algorithms.
+- **`simple_sets.py`**:
+  - `SimpleSet`: Post's simple set construction enumerator, coinfinity lower bound verification, and infinite c.e. set intersection witness generator.
+  - `PriorityWorker`: Finite-injury priority argument engine with movable markers, dynamic restraints, and injury tracking.
 - **`theory_checker.py`**:
   - Static AST and proof hygiene parser for Isabelle theory files (`.thy`).
   - Scans for unproven obligations (`sorry`, `oops`, `cheat`), balanced `proof`/`qed` blocks, and extracts theorems and lemmas.
@@ -107,7 +121,7 @@ python3 -m unittest discover -s tests
 
 Output:
 ```text
-Ran 69 tests in 0.304s
+Ran 82 tests in 0.063s
 OK
 ```
 

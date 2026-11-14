@@ -88,6 +88,18 @@ from recursion_theory.hierarchy import (
     KleeneTPredicate,
     CompletenessProof,
 )
+from recursion_theory.complexity import (
+    BlumComplexityMeasure,
+    BlumCompressionTheorem,
+    BlumSpeedupTheorem,
+    CompressionCertificate,
+    SpeedupCertificate,
+)
+from recursion_theory.simple_sets import (
+    PriorityRequirement,
+    PriorityWorker,
+    SimpleSet,
+)
 
 __all__ = [
     "ProgramSystem",
@@ -162,4 +174,12 @@ __all__ = [
     "PostsTheorem",
     "KleeneTPredicate",
     "CompletenessProof",
+    "BlumComplexityMeasure",
+    "BlumCompressionTheorem",
+    "BlumSpeedupTheorem",
+    "CompressionCertificate",
+    "SpeedupCertificate",
+    "PriorityRequirement",
+    "PriorityWorker",
+    "SimpleSet",
 ]
