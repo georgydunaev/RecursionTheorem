@@ -68,6 +68,26 @@ from recursion_theory.primitive_recursion import (
     prf_equal,
 )
 from recursion_theory.theory_checker import IsabelleTheoryChecker
+from recursion_theory.myhill import (
+    ManyOneReduction,
+    OneOneReduction,
+    FinitePatch,
+    ComputablePermutation,
+    MyhillCertificate,
+    MyhillIsomorphism,
+    effective_cantor_bernstein,
+)
+from recursion_theory.hierarchy import (
+    Quantifier,
+    QuantifierPrefix,
+    ArithmeticalFormula,
+    LimitApproximation,
+    LimitLemma,
+    TuringJump,
+    PostsTheorem,
+    KleeneTPredicate,
+    CompletenessProof,
+)
 
 __all__ = [
     "ProgramSystem",
@@ -126,4 +146,20 @@ __all__ = [
     "prf_min",
     "prf_equal",
     "IsabelleTheoryChecker",
+    "ManyOneReduction",
+    "OneOneReduction",
+    "FinitePatch",
+    "ComputablePermutation",
+    "MyhillCertificate",
+    "MyhillIsomorphism",
+    "effective_cantor_bernstein",
+    "Quantifier",
+    "QuantifierPrefix",
+    "ArithmeticalFormula",
+    "LimitApproximation",
+    "LimitLemma",
+    "TuringJump",
+    "PostsTheorem",
+    "KleeneTPredicate",
+    "CompletenessProof",
 ]

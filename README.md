@@ -23,6 +23,10 @@ The Recursion Theorem appears in two fundamental branches of mathematical logic:
      Constructive reduction and fixed-point behavior of Curry's $Y$ combinator, Turing's $\Theta$ combinator, and call-by-value $Z$ combinator in `recursion_theory/combinators.py`.
    - **Primitive Recursive Functions (PRF)**:
      Composition, primitive recursion schemas, and unbounded minimalization ($\mu$-operator) in `recursion_theory/primitive_recursion.py`.
+   - **Computable Reductions and Myhill Isomorphism Theorem**:
+     Many-one ($A \le_m B$) and one-one ($A \le_1 B$) computable reductions, finite patch extension, and the constructive back-and-forth Myhill isomorphism algorithm in `recursion_theory/myhill.py`.
+   - **Arithmetical Hierarchy and Limit Lemma**:
+     $\Sigma_n^0, \Pi_n^0, \Delta_n^0$ quantifier alternation classification, Shoenfield Limit Lemma ($\Delta_2^0$ limit approximations), Post's Theorem (Turing jump equivalence), and completeness proofs ($\mathcal{K}$ is $\Sigma_1^0$-complete, $\mathrm{Tot}$ is $\Pi_2^0$-complete) in `recursion_theory/hierarchy.py`.
 
 ## Repository Architecture
 
@@ -38,11 +42,14 @@ RecursionTheorem/
 ├── recursion_theory/          (Computational and formalization package)
 │   ├── __init__.py
 │   ├── combinators.py         (Untyped lambda calculus, Y, Theta, Z combinators, Church arithmetic)
+│   ├── hierarchy.py           (Arithmetical hierarchy, Post theorem, Shoenfield limit lemma, completeness)
 │   ├── kleene.py              (Kleene 1st & 2nd recursion theorems, S-m-n, Rice theorem, quines)
+│   ├── myhill.py              (Computable reductions, Myhill isomorphism theorem, Cantor-Bernstein)
 │   ├── primitive_recursion.py (PRF schema, Peano arithmetic, Mu-operator)
 │   └── theory_checker.py      (Automated Isabelle/ZF structural & proof hygiene checker)
 ├── tests/
-│   └── test_recursion.py      (Comprehensive test suite; 25 passing test cases)
+│   ├── test_myhill_and_hierarchy.py (Unit tests for Myhill isomorphism and arithmetical hierarchy)
+│   └── test_recursion.py      (Comprehensive test suite for Kleene theorems and PRFs)
 └── tickets/                   (Local ticket ledger for project tracking)
 ```
 
@@ -74,6 +81,18 @@ The Isabelle/ZF development formalizes:
   - Inductive schemas: `Zero`, `Succ`, `Proj`, `Comp`, `Rec`.
   - Verified Peano ring laws: addition commutativity, associativity, and distributivity.
   - Unbounded minimalization `Mu` operator for $\mu$-recursive functions.
+- **`myhill.py`**:
+  - Many-one (`ManyOneReduction`) and one-one (`OneOneReduction`) computable reductions with composition and verification.
+  - `FinitePatch` bidirectional map tracking domain and range extensions.
+  - `MyhillIsomorphism`: Constructive back-and-forth algorithm generating a computable permutation $\pi : \mathbb{N} \to \mathbb{N}$ such that $x \in A \iff \pi(x) \in B$.
+  - `MyhillCertificate`: Proof certificate of permutation bijectivity, involution, and membership preservation.
+  - `effective_cantor_bernstein`: Constructive Cantor-Bernstein theorem for bijections.
+- **`hierarchy.py`**:
+  - `QuantifierPrefix` and `ArithmeticalFormula`: Classification of relations into $\Sigma_n^0, \Pi_n^0, \Delta_0^0$.
+  - Contraction of adjacent quantifiers via Cantor pairing and duality under negation.
+  - `LimitApproximation` and `LimitLemma`: Shoenfield limit lemma formalization ($\Delta_2^0$ limit convergence and mind change analysis).
+  - `PostsTheorem` and `TuringJump`: Jump hierarchy correspondence $\Sigma_{n+1}^0 \iff \text{c.e. in } \emptyset^{(n)}$.
+  - `CompletenessProof` and `KleeneTPredicate`: Formal completeness for $\mathcal{K}$ ($\Sigma_1^0$), $\mathrm{Tot}$ ($\Pi_2^0$), $\mathrm{Fin}$ ($\Sigma_2^0$), and $\mathrm{Empty}$ ($\Pi_1^0$).
 - **`theory_checker.py`**:
   - Static AST and proof hygiene parser for Isabelle theory files (`.thy`).
   - Scans for unproven obligations (`sorry`, `oops`, `cheat`), balanced `proof`/`qed` blocks, and extracts theorems and lemmas.
@@ -88,7 +107,7 @@ python3 -m unittest discover -s tests
 
 Output:
 ```text
-Ran 25 tests in 0.050s
+Ran 69 tests in 0.304s
 OK
 ```
 
